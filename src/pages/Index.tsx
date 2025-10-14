@@ -41,7 +41,7 @@ const Index = () => {
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => navigate("/teacher/dashboard")}
+                onClick={() => navigate("/teacher/auth")}
               >
                 Continue as Teacher
               </Button>
@@ -65,7 +65,7 @@ const Index = () => {
               <Button
                 className="w-full"
                 size="lg"
-                onClick={() => navigate("/student/dashboard")}
+                onClick={() => navigate("/student/auth")}
               >
                 Continue as Student
               </Button>
