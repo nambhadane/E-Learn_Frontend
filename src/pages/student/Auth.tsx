@@ -6,11 +6,14 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useStudentAuth } from "@/contexts/StudentAuthContext";
 
 const StudentAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { login, register } = useStudentAuth();
   const [isLogin, setIsLogin] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -18,61 +21,80 @@ const StudentAuth = () => {
     password: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
-    if (isLogin) {
-      // Login logic
-      const users = JSON.parse(localStorage.getItem("students") || "[]");
-      const user = users.find(
-        (u: any) => u.username === formData.username && u.password === formData.password
-      );
+    try {
+      if (isLogin) {
+        // Login logic
+        if (!formData.username || !formData.password) {
+          toast({
+            title: "Login failed",
+            description: "Please fill in all fields",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
 
-      if (user) {
-        localStorage.setItem("currentStudent", JSON.stringify(user));
-        toast({
-          title: "Login successful",
-          description: `Welcome back, ${user.name}!`,
-        });
-        navigate("/student/dashboard");
+        const result = await login(formData.username, formData.password);
+
+        if (result.success) {
+          toast({
+            title: "Login successful",
+            description: "Welcome back!",
+          });
+          navigate("/student/dashboard");
+        } else {
+          toast({
+            title: "Login failed",
+            description: result.error || "Invalid username or password",
+            variant: "destructive",
+          });
+        }
       } else {
-        toast({
-          title: "Login failed",
-          description: "Invalid username or password",
-          variant: "destructive",
-        });
-      }
-    } else {
-      // Create account logic
-      if (!formData.name || !formData.email || !formData.username || !formData.password) {
-        toast({
-          title: "Registration failed",
-          description: "Please fill in all fields",
-          variant: "destructive",
-        });
-        return;
-      }
+        // Registration logic
+        if (!formData.name || !formData.email || !formData.username || !formData.password) {
+          toast({
+            title: "Registration failed",
+            description: "Please fill in all fields",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
 
-      const users = JSON.parse(localStorage.getItem("students") || "[]");
-      const existingUser = users.find((u: any) => u.username === formData.username);
+        const result = await register(
+          formData.name,
+          formData.email,
+          formData.username,
+          formData.password
+        );
 
-      if (existingUser) {
-        toast({
-          title: "Registration failed",
-          description: "Username already exists",
-          variant: "destructive",
-        });
-        return;
+        if (result.success) {
+          toast({
+            title: "Account created",
+            description: "Registration successful! Please login with your credentials",
+          });
+          setIsLogin(true);
+          setFormData({ name: "", email: "", username: "", password: "" });
+        } else {
+          toast({
+            title: "Registration failed",
+            description: result.error || "Registration failed. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
-
-      users.push(formData);
-      localStorage.setItem("students", JSON.stringify(users));
+    } catch (error) {
       toast({
-        title: "Account created",
-        description: "Please login with your credentials",
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
       });
-      setIsLogin(true);
-      setFormData({ name: "", email: "", username: "", password: "" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -143,8 +165,8 @@ const StudentAuth = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full" size="lg">
-              {isLogin ? "Login" : "Create Account"}
+            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+              {isLoading ? "Processing..." : isLogin ? "Login" : "Create Account"}
             </Button>
           </form>
 

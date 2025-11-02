@@ -15,7 +15,8 @@ class ApiClient {
   }
 
   private getAuthToken(): string | null {
-    return localStorage.getItem('authToken');
+    // Check for student token first, then teacher token
+    return localStorage.getItem('studentAuthToken') || localStorage.getItem('authToken');
   }
 
   private async request<T>(

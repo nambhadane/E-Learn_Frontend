@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Users, FileText, Plus, Settings, Eye, Trash2 } from "lucide-react";
+import { BookOpen, Users, FileText, Plus, Settings, Eye, Trash2, UserPlus, UserMinus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import { Card } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
-import { classApi, Class } from "@/lib/api/classApi";
+import { classApi, Class, Student } from "@/lib/api/classApi";
 import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 
@@ -43,6 +43,11 @@ const Classes = () => {
     subject: "",
     description: "",
   });
+  const [manageStudentsOpen, setManageStudentsOpen] = useState(false);
+  const [enrolledStudents, setEnrolledStudents] = useState<Student[]>([]);
+  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [studentUsername, setStudentUsername] = useState("");
+  const [isAddingStudent, setIsAddingStudent] = useState(false);
 
   // Fetch classes on component mount
   useEffect(() => {
@@ -105,10 +110,91 @@ const Classes = () => {
   };
 
   const handleManage = (classItem: Class) => {
-    // Navigate to assignments page with class context
-    // For now, just navigate to assignments (you can pass classId as query param later)
-    navigate("/teacher/assignments");
-    toast.info(`Managing class: ${classItem.name}`);
+    setSelectedClass(classItem);
+    setManageStudentsOpen(true);
+    loadCourseStudents(classItem.id!);
+  };
+
+  const loadCourseStudents = async (courseId: number) => {
+    try {
+      setIsLoadingStudents(true);
+      const response = await classApi.getCourseStudents(courseId);
+      if (response.success && response.data) {
+        setEnrolledStudents(response.data);
+      } else {
+        toast.error(response.error || "Failed to load students");
+        setEnrolledStudents([]);
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      toast.error("Failed to load students");
+      setEnrolledStudents([]);
+    } finally {
+      setIsLoadingStudents(false);
+    }
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClass?.id || !studentUsername.trim()) {
+      toast.error("Please enter a student username");
+      return;
+    }
+
+    setIsAddingStudent(true);
+    try {
+      // First, we need to find the student by username
+      // For now, we'll use the student ID directly (you may need to create an endpoint to search by username)
+      // Assuming the backend accepts username instead of ID
+      // TODO: Create endpoint to get student by username or add username field support
+      
+      // Try to parse as number first (student ID)
+      const studentId = parseInt(studentUsername.trim());
+      if (isNaN(studentId)) {
+        toast.error("Please enter a valid student ID");
+        setIsAddingStudent(false);
+        return;
+      }
+
+      const response = await classApi.addStudentToCourse(selectedClass.id, studentId);
+      
+      if (response.success) {
+        toast.success(`Student added successfully!`);
+        setStudentUsername("");
+        // Reload students list
+        await loadCourseStudents(selectedClass.id);
+        // Refresh classes list to update student count
+        await fetchClasses();
+      } else {
+        toast.error(response.error || "Failed to add student");
+      }
+    } catch (error) {
+      console.error("Error adding student:", error);
+      toast.error("Failed to add student. Please try again.");
+    } finally {
+      setIsAddingStudent(false);
+    }
+  };
+
+  const handleRemoveStudent = async (studentId: number) => {
+    if (!selectedClass?.id) return;
+
+    try {
+      const response = await classApi.removeStudentFromCourse(selectedClass.id, studentId);
+      
+      if (response.success) {
+        toast.success("Student removed successfully!");
+        // Reload students list
+        await loadCourseStudents(selectedClass.id);
+        // Refresh classes list to update student count
+        await fetchClasses();
+      } else {
+        toast.error(response.error || "Failed to remove student");
+      }
+    } catch (error) {
+      console.error("Error removing student:", error);
+      toast.error("Failed to remove student. Please try again.");
+    }
   };
 
   const handleDeleteClick = (classItem: Class) => {
@@ -381,8 +467,111 @@ const Classes = () => {
                       setViewDialogOpen(false);
                       handleManage(selectedClass);
                     }}>
-                      Manage Class
+                      Manage Students
                     </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* Manage Students Dialog */}
+          <Dialog open={manageStudentsOpen} onOpenChange={setManageStudentsOpen}>
+            <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Manage Students - {selectedClass?.name}</DialogTitle>
+                <DialogDescription>
+                  Add or remove students from this class
+                </DialogDescription>
+              </DialogHeader>
+              
+              {selectedClass && (
+                <div className="space-y-4 mt-4">
+                  {/* Add Student Form */}
+                  <div className="p-4 bg-muted rounded-lg">
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Add Student
+                    </h4>
+                    <form onSubmit={handleAddStudent} className="space-y-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="studentUsername">Student ID</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            id="studentUsername"
+                            value={studentUsername}
+                            onChange={(e) => setStudentUsername(e.target.value)}
+                            placeholder="Enter student ID"
+                            disabled={isAddingStudent}
+                          />
+                          <Button type="submit" disabled={isAddingStudent || !studentUsername.trim()}>
+                            {isAddingStudent ? (
+                              <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Adding...
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                Add
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Enter the student's ID to add them to this class
+                        </p>
+                      </div>
+                    </form>
+                  </div>
+
+                  <Separator />
+
+                  {/* Enrolled Students List */}
+                  <div>
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Enrolled Students ({enrolledStudents.length})
+                    </h4>
+                    
+                    {isLoadingStudents ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : enrolledStudents.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                        <p>No students enrolled yet</p>
+                        <p className="text-sm mt-1">Add students using the form above</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                        {enrolledStudents.map((student) => (
+                          <Card key={student.id} className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-medium text-foreground">
+                                  {student.name || student.username}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  @{student.username}
+                                  {student.email && ` • ${student.email}`}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveStudent(student.id)}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <UserMinus className="h-4 w-4 mr-1" />
+                                Remove
+                              </Button>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

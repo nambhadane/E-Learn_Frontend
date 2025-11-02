@@ -14,12 +14,13 @@ export interface RegisterRequest {
   role?: string; // Add role field
 }
 
-export interface Teacher {
+export interface Student {
   id?: number;
   name?: string;
   email?: string;
   username: string;
   profilePicture?: string;
+  rollNumber?: string;
 }
 
 export interface LoginResponse {
@@ -31,42 +32,37 @@ export interface RegisterResponse {
   token?: string;
 }
 
-export const teacherApi = {
+export const studentApi = {
   // Login - matches backend: POST /auth/login with { username, password }
   login: async (credentials: LoginRequest) => {
     return apiClient.post<LoginResponse>(API_ENDPOINTS.AUTH_LOGIN, credentials);
   },
 
-  // Register teacher
+  // Register student
   register: async (data: RegisterRequest) => {
-    // Always set role to TEACHER for teacher registration
+    // Always set role to STUDENT for student registration
     const registerData = {
       ...data,
-      role: 'TEACHER'
+      role: 'STUDENT'
     };
     return apiClient.post<RegisterResponse>(API_ENDPOINTS.AUTH_REGISTER, registerData);
   },
 
-  // Get teacher profile (if available)
+  // Get student profile (if available)
   getProfile: async () => {
-    return apiClient.get<Teacher>(API_ENDPOINTS.TEACHER_PROFILE);
+    return apiClient.get<Student>(API_ENDPOINTS.STUDENT_PROFILE);
   },
 
-  // Update teacher profile
+  // Update student profile
   updateProfile: async (data: { name?: string; email?: string }) => {
-    return apiClient.put<Teacher>(API_ENDPOINTS.TEACHER_PROFILE, data);
+    return apiClient.put<Student>(API_ENDPOINTS.STUDENT_PROFILE, data);
   },
 
   // Upload profile picture
   uploadProfilePicture: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    return apiClient.uploadFile<Teacher>(`${API_ENDPOINTS.TEACHER_PROFILE}/picture`, formData);
-  },
-
-  // Get teacher dashboard data (if available)
-  getDashboard: async () => {
-    return apiClient.get(API_ENDPOINTS.TEACHER_DASHBOARD);
+    return apiClient.uploadFile<Student>(`${API_ENDPOINTS.STUDENT_PROFILE}/picture`, formData);
   },
 };
 

@@ -40,9 +40,14 @@ export const notesApi = {
     return apiClient.uploadFile<LessonDTO>(API_ENDPOINTS.LESSONS, formData);
   },
 
-  // Get all lessons/notes for a specific class
+  // Get all lessons/notes for a specific class (for teachers)
   getLessonsByClass: async (classId: number) => {
     return apiClient.get<LessonDTO[]>(`${API_ENDPOINTS.LESSONS}/class/${classId}`);
+  },
+
+  // Get all lessons/notes for a specific class (for students - validates enrollment)
+  getLessonsByClassForStudent: async (classId: number) => {
+    return apiClient.get<LessonDTO[]>(`${API_ENDPOINTS.LESSONS}/student/class/${classId}`);
   },
 
   // Download a lesson file
@@ -53,7 +58,7 @@ export const notesApi = {
   // View a lesson file (opens in browser)
   viewLesson: async (lessonId: number) => {
     const token = localStorage.getItem('authToken');
-    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081'}${API_ENDPOINTS.LESSONS}/${lessonId}/view`;
+    const url = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8082'}${API_ENDPOINTS.LESSONS}/${lessonId}/view`;
     
     // Open in new tab with authorization header won't work directly
     // Instead, create a temporary link with token in query (less secure but works)

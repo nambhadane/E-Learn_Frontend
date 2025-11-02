@@ -22,7 +22,10 @@ const teacherNavItems = [
 
 const Profile = () => {
   const { teacher, updateTeacher } = useAuth();
-  const teacherName = teacher?.name || teacher?.username || "Teacher";
+  // Use name if available (and not empty string), otherwise fall back to username
+  const teacherName = (teacher?.name && teacher.name.trim() !== '') 
+    ? teacher.name 
+    : (teacher?.username || "Teacher");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileBlobUrlRef = useRef<string | null>(null);
   
@@ -87,21 +90,45 @@ const Profile = () => {
     
     try {
       const response = await teacherApi.updateProfile({
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: formData.email.trim(),
       });
 
       if (response.success && response.data) {
         toast.success("Profile updated successfully!");
-        // Update auth context directly so UI updates immediately
-        const updatedTeacher = response.data;
+        
+        // Ensure we have all the data from the response
+        const updatedTeacher = {
+          ...teacher, // Preserve existing data
+          ...response.data, // Override with updated data
+          name: response.data.name || formData.name.trim(), // Ensure name is set
+          email: response.data.email || formData.email.trim(), // Ensure email is set
+        };
+        
+        // Update auth context
         updateTeacher(updatedTeacher);
+        
         // Also update formData to reflect changes
         setFormData({
           name: updatedTeacher.name || "",
           email: updatedTeacher.email || "",
           subject: formData.subject,
         });
+        
+        // Refresh profile from server to get latest data
+        try {
+          const profileResponse = await teacherApi.getProfile();
+          if (profileResponse.success && profileResponse.data) {
+            updateTeacher(profileResponse.data);
+            setFormData(prev => ({
+              ...prev,
+              name: profileResponse.data?.name || prev.name,
+              email: profileResponse.data?.email || prev.email,
+            }));
+          }
+        } catch (profileError) {
+          console.log('Profile refresh not available:', profileError);
+        }
       } else {
         toast.error(response.error || "Failed to update profile");
       }
@@ -143,11 +170,30 @@ const Profile = () => {
 
       if (response.success && response.data) {
         toast.success("Profile picture updated successfully!");
-        // Update auth context directly so UI updates immediately
-        const updatedTeacher = response.data;
+        
+        // Update auth context with new data
+        const updatedTeacher = {
+          ...teacher, // Preserve existing data
+          ...response.data, // Override with updated data
+          profilePicture: response.data.profilePicture, // Ensure profile picture path is set
+        };
         updateTeacher(updatedTeacher);
-        // Update profile picture state
-        setProfilePicture(updatedTeacher.profilePicture || null);
+        
+        // Update profile picture state to trigger useEffect
+        const picturePath = response.data.profilePicture || null;
+        setProfilePicture(picturePath);
+        
+        // Force refresh by clearing and resetting the image URL
+        if (profileBlobUrlRef.current) {
+          URL.revokeObjectURL(profileBlobUrlRef.current);
+          profileBlobUrlRef.current = null;
+        }
+        setProfileImageUrl(null);
+        
+        // Small delay to ensure state updates before re-fetching
+        setTimeout(() => {
+          // The useEffect will trigger and fetch the new image
+        }, 100);
       } else {
         toast.error(response.error || "Failed to upload profile picture");
       }
@@ -167,30 +213,27 @@ const Profile = () => {
   useEffect(() => {
     const loadProfilePicture = async () => {
       const picturePath = profilePicture || teacher?.profilePicture;
-      if (!picturePath) {
-        // Cleanup old blob URL
-        if (profileBlobUrlRef.current) {
-          URL.revokeObjectURL(profileBlobUrlRef.current);
-          profileBlobUrlRef.current = null;
-        }
+      
+      // Cleanup old blob URL first
+      if (profileBlobUrlRef.current) {
+        URL.revokeObjectURL(profileBlobUrlRef.current);
+        profileBlobUrlRef.current = null;
+      }
+      
+      if (!picturePath || picturePath.trim() === '') {
         setProfileImageUrl(null);
         return;
       }
 
       // If it's already a full URL, use it directly
-      if (picturePath.startsWith('http')) {
-        // Cleanup old blob URL
-        if (profileBlobUrlRef.current) {
-          URL.revokeObjectURL(profileBlobUrlRef.current);
-          profileBlobUrlRef.current = null;
-        }
+      if (picturePath.startsWith('http://') || picturePath.startsWith('https://')) {
         setProfileImageUrl(picturePath);
         return;
       }
 
       // Fetch image with authentication token
       try {
-        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081';
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8082';
         const token = localStorage.getItem('authToken');
         
         if (!token) {
@@ -198,24 +241,29 @@ const Profile = () => {
           return;
         }
 
-        // Cleanup old blob URL before creating new one
-        if (profileBlobUrlRef.current) {
-          URL.revokeObjectURL(profileBlobUrlRef.current);
-          profileBlobUrlRef.current = null;
-        }
-
-        const response = await fetch(`${apiBase}/teacher/profile/picture?t=${Date.now()}`, {
+        // Add timestamp to prevent caching issues
+        const timestamp = Date.now();
+        const response = await fetch(`${apiBase}/teacher/profile/picture?t=${timestamp}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
           },
+          cache: 'no-store', // Prevent caching
         });
 
-        if (response.ok) {
+        if (response.ok && response.status === 200) {
           const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          profileBlobUrlRef.current = url;
-          setProfileImageUrl(url);
+          
+          // Verify it's an image
+          if (blob.type.startsWith('image/')) {
+            const url = URL.createObjectURL(blob);
+            profileBlobUrlRef.current = url;
+            setProfileImageUrl(url);
+          } else {
+            console.warn('Response is not an image:', blob.type);
+            setProfileImageUrl(null);
+          }
         } else {
+          console.warn('Failed to fetch profile picture:', response.status, response.statusText);
           setProfileImageUrl(null);
         }
       } catch (error) {
@@ -226,7 +274,7 @@ const Profile = () => {
 
     loadProfilePicture();
     
-    // Cleanup: revoke object URL when component unmounts
+    // Cleanup: revoke object URL when component unmounts or dependencies change
     return () => {
       if (profileBlobUrlRef.current) {
         URL.revokeObjectURL(profileBlobUrlRef.current);
@@ -255,15 +303,23 @@ const Profile = () => {
                 <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border-2 border-border relative">
                   {profileImageUrl ? (
                     <img 
-                      key={`profile-img-${Date.now()}`}
+                      key={`profile-img-${profilePicture || teacher?.profilePicture || 'default'}`}
                       src={profileImageUrl} 
                       alt="Profile" 
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         // Fallback to icon if image fails to load
+                        console.error('Profile image failed to load');
                         const target = e.currentTarget;
                         target.style.display = 'none';
+                        if (profileBlobUrlRef.current) {
+                          URL.revokeObjectURL(profileBlobUrlRef.current);
+                          profileBlobUrlRef.current = null;
+                        }
                         setProfileImageUrl(null);
+                      }}
+                      onLoad={() => {
+                        console.log('Profile image loaded successfully');
                       }}
                     />
                   ) : (

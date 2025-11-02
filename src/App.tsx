@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -20,6 +21,7 @@ import StudentClasses from "./pages/student/Classes";
 import StudentAssignments from "./pages/student/Assignments";
 import StudentGrades from "./pages/student/Grades";
 import StudentNotifications from "./pages/student/Notifications";
+import StudentNotes from "./pages/student/Notes";
 import StudentProfile from "./pages/student/Profile";
 
 const queryClient = new QueryClient();
@@ -31,7 +33,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <StudentAuthProvider>
+            <Routes>
             <Route path="/" element={<Index />} />
             
             {/* Teacher Routes */}
@@ -91,12 +94,14 @@ const App = () => (
             <Route path="/student/classes" element={<StudentClasses />} />
             <Route path="/student/assignments" element={<StudentAssignments />} />
             <Route path="/student/grades" element={<StudentGrades />} />
+            <Route path="/student/notes" element={<StudentNotes />} />
             <Route path="/student/notifications" element={<StudentNotifications />} />
             <Route path="/student/profile" element={<StudentProfile />} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </StudentAuthProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

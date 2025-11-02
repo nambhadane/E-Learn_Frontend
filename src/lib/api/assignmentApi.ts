@@ -35,6 +35,21 @@ export interface GradeSubmissionRequest {
   feedback?: string;
 }
 
+export interface StudentAssignment extends AssignmentDTO {
+  className?: string;
+  status?: 'pending' | 'submitted' | 'graded';
+  submissionId?: number;
+  submittedAt?: string;
+  grade?: number | null;
+  feedback?: string | null;
+}
+
+export interface SubmitAssignmentRequest {
+  assignmentId: number;
+  content?: string;
+  filePath?: string;
+}
+
 export const assignmentApi = {
   // Create a new assignment
   createAssignment: async (data: CreateAssignmentRequest) => {
@@ -64,6 +79,37 @@ export const assignmentApi = {
   // Grade a submission
   gradeSubmission: async (submissionId: number, data: GradeSubmissionRequest) => {
     return apiClient.put<SubmissionDTO>(`${API_ENDPOINTS.ASSIGNMENTS}/submissions/${submissionId}/grade`, data);
+  },
+
+  // ✅ NEW: Get assignments for authenticated student (from enrolled classes)
+  getStudentAssignments: async () => {
+    return apiClient.get<StudentAssignment[]>(API_ENDPOINTS.STUDENT_ASSIGNMENTS);
+  },
+
+  // ✅ NEW: Submit assignment (for students) - supports file uploads
+  submitAssignment: async (assignmentId: number, content?: string, files?: File[]) => {
+    // If files are provided, use multipart/form-data
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('assignmentId', assignmentId.toString());
+      if (content) {
+        formData.append('content', content);
+      }
+      
+      // Append all files
+      files.forEach((file) => {
+        formData.append('files', file);
+      });
+      
+      return apiClient.uploadFile<SubmissionDTO>(`${API_ENDPOINTS.ASSIGNMENTS}/submissions`, formData);
+    } else {
+      // No files, use JSON request
+      const data: SubmitAssignmentRequest = {
+        assignmentId,
+        content: content || undefined,
+      };
+      return apiClient.post<SubmissionDTO>(`${API_ENDPOINTS.ASSIGNMENTS}/submissions`, data);
+    }
   },
 };
 

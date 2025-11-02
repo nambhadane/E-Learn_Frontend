@@ -23,6 +23,20 @@ export interface CreateClassResponse {
   course?: Class;
 }
 
+export interface Student {
+  id: number;
+  username: string;
+  name?: string;
+  email?: string;
+}
+
+export interface AddStudentResponse {
+  message?: string;
+  courseId?: number;
+  studentId?: number;
+  studentName?: string;
+}
+
 export const classApi = {
   // Get all classes for the authenticated teacher
   getClasses: async () => {
@@ -47,6 +61,26 @@ export const classApi = {
   // Delete a class
   deleteClass: async (id: number) => {
     return apiClient.delete(`${API_ENDPOINTS.TEACHER_CLASSES}/${id}`);
+  },
+
+  // ✅ NEW: Get all students in a course
+  getCourseStudents: async (courseId: number) => {
+    return apiClient.get<Student[]>(`${API_ENDPOINTS.TEACHER_CLASSES}/${courseId}/students`);
+  },
+
+  // ✅ NEW: Add student to course
+  addStudentToCourse: async (courseId: number, studentId: number) => {
+    return apiClient.post<AddStudentResponse>(
+      `${API_ENDPOINTS.TEACHER_CLASSES}/${courseId}/students/${studentId}`,
+      {}
+    );
+  },
+
+  // ✅ NEW: Remove student from course
+  removeStudentFromCourse: async (courseId: number, studentId: number) => {
+    return apiClient.delete<AddStudentResponse>(
+      `${API_ENDPOINTS.TEACHER_CLASSES}/${courseId}/students/${studentId}`
+    );
   },
 };
 
