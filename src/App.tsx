@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import TeacherAuth from "./pages/teacher/Auth";
@@ -28,30 +30,74 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          
-          {/* Teacher Routes */}
-          <Route path="/teacher/auth" element={<TeacherAuth />} />
-          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-          <Route path="/teacher/classes" element={<TeacherClasses />} />
-          <Route path="/teacher/notes" element={<TeacherNotes />} />
-          <Route path="/teacher/assignments" element={<TeacherAssignments />} />
-          <Route path="/teacher/grades" element={<TeacherGrades />} />
-          <Route path="/teacher/profile" element={<TeacherProfile />} />
-          
-          {/* Student Routes */}
-          <Route path="/student/auth" element={<StudentAuth />} />
-          <Route path="/student/dashboard" element={<StudentDashboard />} />
-          <Route path="/student/classes" element={<StudentClasses />} />
-          <Route path="/student/assignments" element={<StudentAssignments />} />
-          <Route path="/student/grades" element={<StudentGrades />} />
-          <Route path="/student/notifications" element={<StudentNotifications />} />
-          <Route path="/student/profile" element={<StudentProfile />} />
-          
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            
+            {/* Teacher Routes */}
+            <Route path="/teacher/auth" element={<TeacherAuth />} />
+            <Route
+              path="/teacher/dashboard"
+              element={
+                <ProtectedRoute>
+                  <TeacherDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/classes"
+              element={
+                <ProtectedRoute>
+                  <TeacherClasses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/notes"
+              element={
+                <ProtectedRoute>
+                  <TeacherNotes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/assignments"
+              element={
+                <ProtectedRoute>
+                  <TeacherAssignments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/grades"
+              element={
+                <ProtectedRoute>
+                  <TeacherGrades />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/profile"
+              element={
+                <ProtectedRoute>
+                  <TeacherProfile />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* Student Routes */}
+            <Route path="/student/auth" element={<StudentAuth />} />
+            <Route path="/student/dashboard" element={<StudentDashboard />} />
+            <Route path="/student/classes" element={<StudentClasses />} />
+            <Route path="/student/assignments" element={<StudentAssignments />} />
+            <Route path="/student/grades" element={<StudentGrades />} />
+            <Route path="/student/notifications" element={<StudentNotifications />} />
+            <Route path="/student/profile" element={<StudentProfile />} />
+            
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

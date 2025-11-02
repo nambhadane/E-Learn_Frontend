@@ -4,6 +4,7 @@ import StatCard from "@/components/StatCard";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { teacherData } from "@/data/mockData";
+import { useAuth } from "@/contexts/AuthContext";
 
 const teacherNavItems = [
   { title: "Dashboard", path: "/teacher/dashboard", icon: BookOpen },
@@ -15,16 +16,19 @@ const teacherNavItems = [
 ];
 
 const TeacherDashboard = () => {
+  const { teacher } = useAuth();
+  const teacherName = teacher?.name || teacher?.username || "Teacher";
+
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar navItems={teacherNavItems} userType="teacher" userName={teacherData.name} />
+      <Sidebar navItems={teacherNavItems} userType="teacher" userName={teacherName} />
       
       <main className="flex-1 ml-64 p-8">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header */}
           <div>
             <h1 className="text-3xl font-bold text-foreground">Dashboard Overview</h1>
-            <p className="text-muted-foreground mt-1">Welcome back, {teacherData.name}</p>
+            <p className="text-muted-foreground mt-1">Welcome back, {teacherName}</p>
           </div>
 
           {/* Stats Grid */}

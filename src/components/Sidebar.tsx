@@ -2,6 +2,8 @@ import { NavLink } from "react-router-dom";
 import { LucideIcon, LogOut, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface NavItem {
   title: string;
@@ -16,6 +18,20 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ navItems, userType, userName }: SidebarProps) => {
+  const navigate = useNavigate();
+  // Always call useAuth (AuthProvider wraps the entire app)
+  const authContext = useAuth();
+
+  const handleLogout = () => {
+    if (userType === "teacher") {
+      // Use auth context logout for teachers
+      authContext.logout();
+    } else {
+      // Fallback for student pages
+      localStorage.clear();
+      navigate("/");
+    }
+  };
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-card border-r border-border flex flex-col shadow-sm">
       {/* Logo and branding */}
@@ -68,7 +84,7 @@ const Sidebar = ({ navItems, userType, userName }: SidebarProps) => {
         <Button
           variant="outline"
           className="w-full justify-start gap-3"
-          onClick={() => (window.location.href = "/")}
+          onClick={handleLogout}
         >
           <LogOut className="h-5 w-5" />
           <span>Logout</span>
